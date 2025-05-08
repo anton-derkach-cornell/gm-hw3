@@ -44,21 +44,42 @@ class Generator(torch.nn.Module):
         super(Generator, self).__init__()
         self.capacity = capacity
 
-        self.embed = torch.nn.Linear(seed_size, capacity*7*7, bias=False)
+        # Previous code for MNIST
+        # self.embed = torch.nn.Linear(seed_size, capacity*7*7, bias=False)
+
+        # Changed from capacity*7*7 to capacity*8*8 for 32x32 output for CIFAR-10
+        self.embed = torch.nn.Linear(seed_size, capacity*8*8, bias=False)
 
         self.resnet = torch.nn.ModuleList()
-        for i in range(3): self.resnet.append(Block(capacity))
+
+        # Previous code for MNIST
+        # for i in range(3): self.resnet.append(Block(capacity))
+
+        # Increased from 3 to 9 residual blocks for CIFAR-10 images
+        for i in range(9): 
+            self.resnet.append(Block(capacity))
         self.resnet.append(Upsample(capacity, capacity, 4))
 
-        self.image = torch.nn.Conv2d(capacity, 1, 3, padding=1, bias=True)
-        self.bias = torch.nn.Parameter(torch.Tensor(1,28,28))
+        # Previous code for MNIST
+        # self.image = torch.nn.Conv2d(capacity, 1, 3, padding=1, bias=True)
+        # self.bias = torch.nn.Parameter(torch.Tensor(1,28,28))
+
+        # Changed output from 1 channel to 3 channels for RGB for CIFAR-10
+        self.image = torch.nn.Conv2d(capacity, 3, 3, padding=1, bias=True)
+        # Adjusted bias for 3x32x32 for CIFAR-10
+        self.bias = torch.nn.Parameter(torch.Tensor(3, 32, 32))
 
         for name, parm in self.named_parameters():
             if name.endswith('weight'): torch.nn.init.normal_(parm, 0, .05)
             if name.endswith('bias'): torch.nn.init.constant_(parm, 0.0)
 
     def forward(self, s):
-        zx = F.relu(self.embed(s).view(-1,self.capacity,7,7))
+        # Previous code for MNIST
+        # zx = F.relu(self.embed(s).view(-1,self.capacity,7,7))
+
+        # Adjusted reshape for 8x8 spatial size for CIFAR-10
+        zx = F.relu(self.embed(s).view(-1, self.capacity, 8, 8))
+
         for layer in self.resnet: zx = layer(zx)
         return torch.sigmoid(self.image(zx) + self.bias[None,:,:,:])
 
@@ -67,7 +88,11 @@ class Discriminator(torch.nn.Module):
         super(Discriminator, self).__init__()
         self.capacity = capacity
 
-        self.embed = torch.nn.Conv2d(1, capacity, 3, padding=1, bias=False)
+        # Previous code for MNIST
+        # self.embed = torch.nn.Conv2d(1, capacity, 3, padding=1, bias=False)
+
+        # Changed input from 1 channel to 3 channels for RGB for CIFAR-10
+        self.embed = torch.nn.Conv2d(3, capacity, 3, padding=1, bias=False)
 
         self.resnet = torch.nn.ModuleList()
         self.resnet.append(DBlock(capacity, stride=4))
